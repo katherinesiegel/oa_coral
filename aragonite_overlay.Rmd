@@ -45,7 +45,7 @@ c_all <- rbind(c_poly, c_pts)
 
 ### Reproject to match crs of aragonite rasters
 c_all <- st_transform(c_all, 
-                      crs = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+                      crs = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 ```
 
 ## Aragonite projections
@@ -54,3 +54,9 @@ arag_2010 <- raster(file.path(arag_path, "arg_2010.tif"))
 ```
 
 ## Clip rasters 
+```{r}
+arag_rast <- list.files(path = arag_path,
+                        pattern = "^arg_.*tif$",
+                        full.names = TRUE)
+```
+
