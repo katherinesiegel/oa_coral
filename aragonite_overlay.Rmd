@@ -27,7 +27,7 @@ library(gdalUtils)
 ### Pathways
 coral_path <- "C:/Users/Katherine Siegel/Documents/Ren Edits/BP2_Tourism/14_001_WCMC008_CoralReefs2018_v4/01_Data"
 arag_path <- "C:/Users/Katherine Siegel/Documents/Ren Edits/BP2_Tourism/Saturation"
-eez_path <- "C:/Users/Katherine Siegel/Documents/Ren Edits/BP2_Tourism/eez"
+# eez_path <- "C:/Users/Katherine Siegel/Documents/Ren Edits/BP2_Tourism/eez"
 ```
 
 ## Coral map
@@ -45,17 +45,7 @@ c_all <- rbind(c_poly, c_pts)
 
 ### Reproject to match crs of aragonite rasters
 c_all <- st_transform(c_all, 
-                      crs = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-
-### EEZ boundaries
-eez <- st_read(file.path(eez_path, "eez_v10.shp"))
-eez <- eez %>% 
-  dplyr::select(., ISO_Ter1, ISO_Ter2, ISO_Ter3, GeoName, geometry)
-
-### Transform to planar coordinates for intersection
-
-### Intersect corals with EEZ
-c_all_eez <- st_intersection(c_all, eez)
+                      crs = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
 ```
 
 ## Aragonite projections
