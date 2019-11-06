@@ -102,7 +102,8 @@ for (i in 1:nlayers(arag_stack)) {
 }
 ```
 
-## exactextract full data set
+## exactextract full data set 
+started loop 10:27am, done 10:54am
 ```{r}
 ### Copy coral polygons df
 coral_p <- c_poly
@@ -118,6 +119,9 @@ for (i in 1:nlayers(arag_stack)) {
                                                                   "count"))
   
 }
+
+### Save output as csv
+write_csv(coral_p, "polygon_aragonite_values.csv")
 ```
 
 
