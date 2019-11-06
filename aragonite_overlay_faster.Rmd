@@ -1,0 +1,198 @@
+---
+title: "aragonite_overlay_faster"
+author: "Katherine Siegel"
+date: "November 4, 2019"
+output: html_document
+---
+
+## Description
+Attempt to speed up aragonite_overlay for polygons by dividing raster into chunks before doing the extraction. 
+
+## Set up
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+### Load packages
+library(tidyverse)
+library(raster)
+library(sf)
+library(gdalUtils)
+library(sp)
+library(exactextractr)
+
+### Pathways
+coral_path <- "C:/Users/Katherine Siegel/Documents/Ren Edits/BP2_Tourism/14_001_WCMC008_CoralReefs2018_v4/01_Data"
+arag_path <- "C:/Users/Katherine Siegel/Documents/Ren Edits/BP2_Tourism/Saturation"
+eez_path <- "C:/Users/Katherine Siegel/Documents/Ren Edits/BP2_Tourism/eez"
+```
+
+## Coral map
+Some of the coral locations are points, some are polygons. 
+
+### Coral polygons
+```{r}
+### Open polygons and points files
+c_poly <- st_read(file.path(coral_path,
+                            "WCMC008_CoralReef2018_Py_v4.shp"))
+
+# ### Calculate centroid of polygons
+# c_poly$centroids <- st_centroid(c_poly$geometry)
+
+### Reproject to match crs of aragonite rasters
+c_poly <- st_transform(c_poly, 
+                      crs = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+# ### Write out sf to rasterize in gdal
+# st_write(c_poly, "coral_polygons.shp")
+
+### Drop extra columns
+c_poly <- c_poly %>%
+  dplyr::select(., PARENT_ISO, ISO3, SUB_LOC, geometry)
+
+### Add column for polygon ID
+c_poly$poly_id <- 1:nrow(c_poly)
+
+# ### Rasterize, with ISO3 as burn-in value. Use resolution of aragonite saturation layers (1.125, 0.4427083  (x, y))
+# c_all_rast <- gdal_rasterize(src_datasource = c_all, 
+#                              dst_filename = "c_all.tif",
+#                              a = "ISO3",
+#                              tr = c(1.125, 0.4427083))
+
+```
+## Aragonite projections
+### Make raster stack
+```{r}
+### Get file names
+arag_rast <- list.files(path = arag_path,
+                        pattern = "^arg_.*tif$",
+                        full.names = TRUE)
+
+### Make stack
+arag_stack <- raster::stack(arag_rast)
+
+# ### Write out rasterstack (for use with polygons)
+# writeRaster(arag_stack, filename = "arag_raster_stack.tif")
+```
+
+## Break up data
+```{r}
+### Vector of ISO3 codes
+iso3 <- unique(c_poly$ISO3)
+```
+
+
+### First few ISO3s
+```{r}
+batch_1 <- filter(c_poly, ISO3 %in% iso3[1:10]) %>%
+  st_write(., "polys_batch_1.shp")
+```
+
+### Test extraction with Brazil
+#### exactextract
+```{r}
+### Subset
+bra_c <- subset(c_poly, ISO3 == "BRA")
+
+### Extract one year
+bra_c[, c(paste0("sum", "_", 
+                 names(arag_stack[[1]])), 
+          paste0("count", "_", 
+                 names(arag_stack[[1]])))] <- exact_extract(arag_stack[[1]],
+                                                           bra_c, c("sum", "count"))
+
+### Write loop to extract each year
+for (i in 1:nlayers(arag_stack)) {
+  bra_c[, c(paste0("sum", "_", 
+                 names(arag_stack[[i]])), 
+          paste0("count", "_", 
+                 names(arag_stack[[i]])))] <- exact_extract(arag_stack[[i]],
+                                                           bra_c, c("sum", "count"))
+  
+}
+```
+
+
+#### raster::extract
+```{r}
+### Convert to sp object
+bra_sp <- as(bra_c, Class = "Spatial")
+
+######### Get sum
+### Extract sum aragonite saturation state (11:58am)
+bra_vals_sum <- extract(arag_stack, bra_sp,
+                              fun = 'sum', na.rm = TRUE,
+                              sp = TRUE)
+
+### Convert to sf 
+bra_vals_sum <- st_as_sf(bra_vals_sum)
+st_write(bra_vals_sum, "brazil_sum.shp")
+
+######### Get count (1:12)
+### Make masked raster
+bra_mask <- mask(arag_stack[[1]], bra_sp)
+
+### Set all values to 1
+bra_mask <- 
+bra_count <- cellStats(bra_mask, count)
+bra_vals_count <- extract(arag_stack, bra_sp,
+                              fun = function(x, ...) length(x),
+                              sp = TRUE)
+cellStats(bra_mask, range)
+
+```
+
+### Try with ISO3
+```{r}
+length(unique(c_poly$ISO3))
+
+### Split by ISO3
+c_split <- split(c_poly, c_poly$ISO3)
+```
+
+### Try with EEZs
+Slow
+```{r}
+# ### Read in EEZ
+# eez <- st_read(file.path(eez_path,
+#                             "eez_v10.shp"))
+# 
+# ### Reproject to match crs of aragonite rasters
+# eez <- st_transform(eez, 
+#                       crs = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+# 
+# ### Intersect coral polygons with EEZs
+# c_eez <- st_intersection(c_poly, eez)
+```
+
+
+## Extract values to coral polygons
+Used Zonal Statistics as Table tool in ArcGIS to get SUM of raster values within polygons (grouped by ISO3)
+```{r}
+### Make subset of c_poly to try on
+c_poly_ss <- subset(c_poly, poly_id > 5 & poly_id < 10)
+
+### Convert to sp object
+c_ss_sp <- as(c_poly_ss, Class = "Spatial")
+
+### Extract for subset
+poly_vals_ss <- extract(arag_stack, c_ss_sp,
+                              fun = 'sum', na.rm = TRUE,
+                              sp = TRUE)
+
+### Convert to sf 
+poly_vals_ss <- st_as_sf(poly_vals_ss)
+
+##################################
+### Run on full dataset
+##################################
+### Convert to sp object
+c_sp <- as(c_poly, Class = "Spatial")
+
+### Extract for subset
+poly_vals_sum <- extract(arag_stack, c_sp,
+                              fun = 'sum', na.rm = TRUE,
+                              sp = TRUE)
+
+### Convert to sf 
+poly_vals_sum <- st_as_sf(poly_vals_sum)
+```
