@@ -22,12 +22,16 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(raster)
 library(sf)
-library(gdalUtils)
+# library(gdalUtils)
 
-### Pathways
-coral_path <- "C:/Users/Katherine Siegel/Documents/Ren Edits/BP2_Tourism/14_001_WCMC008_CoralReefs2018_v4/01_Data"
-arag_path <- "C:/Users/Katherine Siegel/Documents/Ren Edits/BP2_Tourism/Saturation"
-# eez_path <- "C:/Users/Katherine Siegel/Documents/Ren Edits/BP2_Tourism/eez"
+### Pathways on laptop
+# coral_path <- "C:/Users/Katherine Siegel/Documents/Ren Edits/BP2_Tourism/14_001_WCMC008_CoralReefs2018_v4/01_Data"
+# arag_path <- "C:/Users/Katherine Siegel/Documents/Ren Edits/BP2_Tourism/Saturation"
+## eez_path <- "C:/Users/Katherine Siegel/Documents/Ren Edits/BP2_Tourism/eez"
+
+### Pathways on lab computer
+coral_path_326 <- "E:/coral_acid/14_001_WCMC008_CoralReefs2018_v4/01_Data"
+arag_path_326 <- "E:/coral_acid/Saturation"
 ```
 
 ## Coral map
@@ -54,16 +58,19 @@ c_pts <- c_pts %>%
 
 ### Coral polygons
 ```{r}
-### Open polygons and points files
+### Open polygons and points files (laptop)
 c_poly <- st_read(file.path(coral_path,
+                            "WCMC008_CoralReef2018_Py_v4.shp"))
+### Open polygons and points files (lab computer)
+c_poly <- st_read(file.path(coral_path_326,
                             "WCMC008_CoralReef2018_Py_v4.shp"))
 
 ### Reproject to match crs of aragonite rasters
 c_poly <- st_transform(c_poly, 
                       crs = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 
-### Write out sf to rasterize in gdal
-st_write(c_poly, "coral_polygons.shp")
+# ### Write out sf to rasterize in gdal
+# st_write(c_poly, "coral_polygons.shp")
 
 ### Drop extra columns
 c_poly <- c_poly %>%
@@ -83,8 +90,12 @@ c_poly$poly_id <- 1:nrow(c_poly)
 ## Aragonite projections
 ### Make raster stack
 ```{r}
-### Get file names
+### Get file names (laptop)
 arag_rast <- list.files(path = arag_path,
+                        pattern = "^arg_.*tif$",
+                        full.names = TRUE)
+### Get file names (lab computer)
+arag_rast <- list.files(path = arag_path_326,
                         pattern = "^arg_.*tif$",
                         full.names = TRUE)
 
