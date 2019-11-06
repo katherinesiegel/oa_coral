@@ -18,6 +18,7 @@ library(raster)
 library(sf)
 library(gdalUtils)
 library(sp)
+library(exactextractr)
 
 ### Pathways
 coral_path <- "C:/Users/Katherine Siegel/Documents/Ren Edits/BP2_Tourism/14_001_WCMC008_CoralReefs2018_v4/01_Data"
@@ -74,11 +75,45 @@ arag_stack <- raster::stack(arag_rast)
 ```
 
 ## Break up data
+```{r}
+### Vector of ISO3 codes
+iso3 <- unique(c_poly$ISO3)
+```
+
+
+### First few ISO3s
+```{r}
+batch_1 <- filter(c_poly, ISO3 %in% iso3[1:10]) %>%
+  st_write(., "polys_batch_1.shp")
+```
+
 ### Test extraction with Brazil
+#### exactextract
 ```{r}
 ### Subset
 bra_c <- subset(c_poly, ISO3 == "BRA")
 
+### Extract one year
+bra_c[, c(paste0("sum", "_", 
+                 names(arag_stack[[1]])), 
+          paste0("count", "_", 
+                 names(arag_stack[[1]])))] <- exact_extract(arag_stack[[1]],
+                                                           bra_c, c("sum", "count"))
+
+### Write loop to extract each year
+for (i in 1:nlayers(arag_stack)) {
+  bra_c[, c(paste0("sum", "_", 
+                 names(arag_stack[[i]])), 
+          paste0("count", "_", 
+                 names(arag_stack[[i]])))] <- exact_extract(arag_stack[[i]],
+                                                           bra_c, c("sum", "count"))
+  
+}
+```
+
+
+#### raster::extract
+```{r}
 ### Convert to sp object
 bra_sp <- as(bra_c, Class = "Spatial")
 
