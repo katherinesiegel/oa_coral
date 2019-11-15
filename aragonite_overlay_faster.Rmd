@@ -124,7 +124,35 @@ for (i in 1:nlayers(arag_stack)) {
 write_csv(coral_p, "polygon_aragonite_values.csv")
 ```
 
+## Combine pts and polys
+```{r}
+### Open pts
+pts <- read_csv("E:/coral_acid/oa_coral/coral_points_arag.csv")
 
+### Open polys
+polys <- read_csv("E:/coral_acid/oa_coral/polygon_aragonite_values.csv")
+
+### Want df with cols: PARENT_ISO, ISO3, SUB_LOC, year, sum_arag, num_cells
+fix_poly <- polys %>%
+  gather(variable, value, sum_arg_2010:count_arg_2090) %>%
+  separate(variable, c("var", "col")) %>%
+  arrange("PARENT_ISO") %>%
+  spread(col, value)
+  
+  
+ww_test_wide <- ww_test %>%
+  gather_(key = "variable", value = "value", 
+          c("max_seasonal_value", "avg_seasonal_value")) %>% ## make longer
+  mutate(clim_var_type = paste0(clim_var, "_", variable)) %>% ## make spread key
+  dplyr::select(UID, clim_var_type, season_w_year, value, state) %>%
+  spread(key = clim_var_type, value = value)
+  
+```
+
+
+
+
+## OLD CODE
 ### Test extraction with Brazil
 #### raster::extract
 ```{r}
